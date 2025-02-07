@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>Haiti Earthquake Impact Survey</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            flex-direction: row;
+            align-items: stretch;
+        }
+
+        #side-panel {
+            flex-basis: 500px;
+            overflow-y: scroll;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+
+        #map {
+            flex-grow: 1;
+        }
+
+        button {
+            margin-bottom: 10px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <main id="container">
+        <div id="side-panel">
+            <h2>Haiti Earthquake Impact Surveys</h2>
+            <button>Sort by FID</button>
+            <table>
+                <tr>
+                    <th>FID</th>
+                    <th>Impact Description</th>
+                </tr>
+            </table>
+        </div>
+        <div id="map"></div>
+    </main>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiamR1b25nMjgiLCJhIjoiY202cXl4ZDRqMGxxbTJqb2xyeGRzOGhvaCJ9.JUbg0DQXqWuOvZS_DeUCAw';
+
+        let map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/light-v10',
+            zoom: 7,
+            center: [-72.2852, 18.9712]  // Centered on Haiti
+        });
+
+        async function geojsonFetch() {
+            let response, surveys, haiti;
+
+            // Fetch Haiti survey data
+            response = await fetch('assets/Haiti_earthquake_surveys.geojson');
+            surveys = await response.json();
+
+            // Fetch Haiti administrative boundaries
+            response = await fetch('assets/ht.json');
+            haiti = await response.json();
+
+            // Load administrative district data
+            map.on('load', function () {
+                map.addSource('haiti-districts', { type: 'geojson', data: haiti });
+
+                map.addLayer({
+                    'id': 'haiti-boundaries',
+                    'type': 'fill',
+                    'source': 'haiti-districts',
+                    'paint': {
+                        'fill-color': '#0080ff',
+                        'fill-opacity': 0.3
+                    }
+                });
+
+                // Label districts with their names
+                map.addLayer({
+                    'id': 'district-labels',
+                    'type': 'symbol',
+                    'source': 'haiti-districts',
+                    'layout': {
+                        'text-field': [
+                            'format',
+                            ['get', 'HTAR'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTCE'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTGA'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTND'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTNE'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTNI'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTNO'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTOU'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTSD'], { 'font-scale': 1.2 },
+                            '\n', {},
+                            ['get', 'HTSE'], { 'font-scale': 1.2 }
+                        ],
+                        'text-variable-anchor': ['center'],
+                        'text-radial-offset': 0.5,
+                        'text-justify': 'auto'
+                    },
+                    'paint': {
+                        'text-color': '#000'
+                    }
+                });
+
+                // Load survey data points
+                map.addSource('survey-points', { type: 'geojson', data: surveys });
+
+                map.addLayer({
+                    'id': 'survey-layer',
+                    'type': 'circle',
+                    'source': 'survey-points',
+                    'paint': {
+                        'circle-radius': 6,
+                        'circle-stroke-width': 2,
+                        'circle-color': 'red',
+                        'circle-stroke-color': 'white'
+                    }
+                });
+
+                // Add popups for survey points
+                map.on('click', 'survey-layer', function (e) {
+                    let description = e.features[0].properties.Haiti_CIMD || 'No description available';
+                    new mapboxgl.Popup()
+                        .setLngLat(e.lngLat)
+                        .setHTML(`<strong>Impact:</strong> ${description}`)
+                        .addTo(map);
+                });
+            });
+
+            // Generate survey list in the table
+            let table = document.getElementsByTagName("table")[0];
+            let row, cell1, cell2;
+
+            for (let i = 0; i < surveys.features.length; i++) {
+                row = table.insertRow(-1);
+                cell1 = row.insertCell(0);
+                cell2 = row.insertCell(1);
+
+                cell1.innerHTML = surveys.features[i].properties.FID || "N/A";
+                cell2.innerHTML = surveys.features[i].properties.Haiti_CIMD || "No description";
+            }
+
+            // Sorting Functionality
+            document.querySelector("button").addEventListener('click', function () {
+                let switching, i, x, y, shouldSwitch;
+                let rows = table.rows;
+                switching = true;
+
+                while (switching) {
+                    switching = false;
+                    for (i = 1; i < (rows.length - 1); i++) {
+                        shouldSwitch = false;
+                        x = parseInt(rows[i].getElementsByTagName("td")[0].innerHTML);
+                        y = parseInt(rows[i + 1].getElementsByTagName("td")[0].innerHTML);
+
+                        if (x > y) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+                    if (shouldSwitch) {
+                        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                        switching = true;
+                    }
+                }
+            });
+        }
+
+        geojsonFetch();
+    </script>
+</body>
+</html>
