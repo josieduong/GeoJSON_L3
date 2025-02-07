@@ -3,47 +3,69 @@
 <head>
     <meta charset="utf-8">
     <title>Haiti Earthquake Impact Survey</title>
-        <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-        <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
-        <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
     <style>
-        body {
+        body, html {
             margin: 0;
             padding: 0;
-        }
-
-        #container {
-            display: flex;
-            height: 100vh;
-            flex-direction: row;
-            align-items: stretch;
-        }
-
-        #side-panel {
-            flex-basis: 500px;
-            overflow-y: scroll;
-            padding: 15px;
-            background-color: #f9f9f9;
+            width: 100%;
+            height: 100%;
         }
 
         #map {
-            flex-grow: 1;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #side-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 400px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            overflow-y: auto;
+            box-shadow: 2px 0px 5px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        @media (max-width: 1024px) {
+            #side-panel {
+                display: none;
+            }
+        }
+
+        h2 {
+            margin-top: 0;
         }
 
         button {
             margin-bottom: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
         }
 
         table {
-            border-collapse: collapse;
             width: 100%;
-            border: 1px solid #ddd;
+            border-collapse: collapse;
+            margin-top: 10px;
         }
 
         th, td {
-            text-align: left;
+            border: 1px solid #ddd;
             padding: 8px;
-            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #0073e6;
+            color: white;
         }
 
         tr:nth-child(even) {
@@ -52,26 +74,25 @@
     </style>
 </head>
 <body>
-    <main id="container">
-        <div id="side-panel">
-            <h2>Haiti Earthquake Impact Surveys</h2>
-            <button>Sort by FID</button>
-            <table>
-                <tr>
-                    <th>FID</th>
-                    <th>Impact Description</th>
-                </tr>
-            </table>
-        </div>
-        <div id="map"></div>
-    </main>
+
+    <div id="map"></div>
+    <div id="side-panel">
+        <h2>Haiti Earthquake Impact Surveys</h2>
+        <button id="sort-btn">Sort by FID</button>
+        <table>
+            <tr>
+                <th>FID</th>
+                <th>Impact Description</th>
+            </tr>
+        </table>
+    </div>
 
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoiamR1b25nMjgiLCJhIjoiY202cXl4ZDRqMGxxbTJqb2xyeGRzOGhvaCJ9.JUbg0DQXqWuOvZS_DeUCAw';
 
         let map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/light-v10',
+            style: 'mapbox://styles/mapbox/satellite-v8', // Satellite view restored
             zoom: 7,
             center: [-72.2852, 18.9712]  // Centered on Haiti
         });
@@ -87,8 +108,8 @@
             response = await fetch('assets/ht.json');
             haiti = await response.json();
 
-            // Load administrative district data
             map.on('load', function () {
+                // Load Haiti boundary layer
                 map.addSource('haiti-districts', { type: 'geojson', data: haiti });
 
                 map.addLayer({
@@ -98,43 +119,6 @@
                     'paint': {
                         'fill-color': '#0080ff',
                         'fill-opacity': 0.3
-                    }
-                });
-
-                // Label districts with their names
-                map.addLayer({
-                    'id': 'district-labels',
-                    'type': 'symbol',
-                    'source': 'haiti-districts',
-                    'layout': {
-                        'text-field': [
-                            'format',
-                            ['get', 'HTAR'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTCE'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTGA'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTND'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTNE'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTNI'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTNO'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTOU'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTSD'], { 'font-scale': 1.2 },
-                            '\n', {},
-                            ['get', 'HTSE'], { 'font-scale': 1.2 }
-                        ],
-                        'text-variable-anchor': ['center'],
-                        'text-radial-offset': 0.5,
-                        'text-justify': 'auto'
-                    },
-                    'paint': {
-                        'text-color': '#000'
                     }
                 });
 
@@ -163,46 +147,33 @@
                 });
             });
 
-            // Generate survey list in the table
-            let table = document.getElementsByTagName("table")[0];
-            let row, cell1, cell2;
+            // Populate table
+            let table = document.querySelector("table");
+            surveys.features.forEach((feature) => {
+                let row = table.insertRow(-1);
+                let cell1 = row.insertCell(0);
+                let cell2 = row.insertCell(1);
 
-            for (let i = 0; i < surveys.features.length; i++) {
-                row = table.insertRow(-1);
-                cell1 = row.insertCell(0);
-                cell2 = row.insertCell(1);
+                cell1.innerHTML = feature.properties.FID || "N/A";
+                cell2.innerHTML = feature.properties.Haiti_CIMD || "No description";
+            });
 
-                cell1.innerHTML = surveys.features[i].properties.FID || "N/A";
-                cell2.innerHTML = surveys.features[i].properties.Haiti_CIMD || "No description";
-            }
+            // Sorting functionality
+            document.getElementById("sort-btn").addEventListener('click', function () {
+                let rows = Array.from(document.querySelectorAll("table tr")).slice(1);
+                let sortedRows = rows.sort((a, b) => {
+                    let valA = parseInt(a.cells[0].innerText);
+                    let valB = parseInt(b.cells[0].innerText);
+                    return valA - valB;
+                });
 
-            // Sorting Functionality
-            document.querySelector("button").addEventListener('click', function () {
-                let switching, i, x, y, shouldSwitch;
-                let rows = table.rows;
-                switching = true;
-
-                while (switching) {
-                    switching = false;
-                    for (i = 1; i < (rows.length - 1); i++) {
-                        shouldSwitch = false;
-                        x = parseInt(rows[i].getElementsByTagName("td")[0].innerHTML);
-                        y = parseInt(rows[i + 1].getElementsByTagName("td")[0].innerHTML);
-
-                        if (x > y) {
-                            shouldSwitch = true;
-                            break;
-                        }
-                    }
-                    if (shouldSwitch) {
-                        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-                        switching = true;
-                    }
-                }
+                // Re-append rows in sorted order
+                sortedRows.forEach(row => table.appendChild(row));
             });
         }
 
         geojsonFetch();
     </script>
+
 </body>
 </html>
