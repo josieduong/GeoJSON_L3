@@ -70,10 +70,10 @@
         mapboxgl.accessToken = 'pk.eyJ1IjoiamR1b25nMjgiLCJhIjoiY202cXl4ZDRqMGxxbTJqb2xyeGRzOGhvaCJ9.JUbg0DQXqWuOvZS_DeUCAw';
 
         let map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/light-v10',
-            zoom: 7,
-            center: [-72.2852, 18.9712]  // Centered on Haiti
+        container: 'map',
+        style: 'mapbox://styles/mapbox/satellite-v9',
+        zoom: 7,
+        center: [-72.2852, 18.9712]  // Centered on Haiti
         });
 
         async function geojsonFetch() {
